@@ -113,6 +113,7 @@ def execute_function_call(request: FunctionCallRequest):
     source = _source_labels[fn_name]
     limit = args.pop("limit", 10)
     voice_mode = args.pop("voice_mode", True)  # LLM calls default to voice mode
+    aggregate = args.get("aggregate", False)
 
     # Fetch records, passing remaining args as connector filters
     raw = connector.fetch(**args)
@@ -128,12 +129,20 @@ def execute_function_call(request: FunctionCallRequest):
     # Build the response envelope
     applied_filters = {k: v for k, v in args.items() if v is not None}
 
+    # For aggregated analytics, enrich filters with real numbers for the voice summary
+    if source == "analytics" and aggregate and paged:
+        agg = paged[0]
+        applied_filters["_avg"] = agg.get("average")
+        applied_filters["_min"] = agg.get("minimum")
+        applied_filters["_max"] = agg.get("maximum")
+        applied_filters["_days"] = agg.get("total_data_points", "")
+
     meta = DataMeta(
         source=source,
         data_type=data_type,
         voice_summary=build_voice_summary(source, data_type, len(paged), total, applied_filters),
         data_freshness=get_freshness_label(),
-        applied_filters=applied_filters,
+        applied_filters={k: v for k, v in applied_filters.items() if not k.startswith("_")},
         pagination=PaginationInfo(
             total_records=total,
             returned_records=len(paged),

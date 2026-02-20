@@ -197,12 +197,21 @@ def get_analytics_data(
     paged = raw if aggregate else apply_voice_limits(raw, limit=limit, voice_mode=voice_mode)
     data_type = identify_data_type(paged)
 
+    # For aggregated analytics, pull the numbers into applied_filters so the
+    # voice optimizer can say something like "average 557, lowest 162, highest 948"
+    if aggregate and paged:
+        agg = paged[0]
+        applied_filters["_avg"] = agg.get("average")
+        applied_filters["_min"] = agg.get("minimum")
+        applied_filters["_max"] = agg.get("maximum")
+        applied_filters["_days"] = agg.get("total_data_points", "")
+
     meta = DataMeta(
         source="analytics",
         data_type=data_type,
         voice_summary=build_voice_summary("analytics", data_type, len(paged), total, applied_filters),
         data_freshness=get_freshness_label(),
-        applied_filters=applied_filters,
+        applied_filters={k: v for k, v in applied_filters.items() if not k.startswith("_")},
         pagination=PaginationInfo(
             total_records=total,
             returned_records=len(paged),

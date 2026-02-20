@@ -65,11 +65,20 @@ def build_voice_summary(
         )
 
     # Analytics – aggregated summary (single record)
+    # The caller puts the aggregated values into applied_filters so we can speak them
     if source == "analytics" and data_type == "aggregated":
-        return (
-            f"Analytics summary ready. "
-            f"I have aggregated metrics across the requested date range for you."
-        )
+        metric_name = filters.get("metric", "the requested metric").replace("_", " ")
+        avg = filters.get("_avg")
+        low = filters.get("_min")
+        high = filters.get("_max")
+        days = filters.get("_days", "")
+        period = f" over the last {days} days" if days else ""
+        if avg is not None:
+            return (
+                f"Here's the summary for {metric_name}{period}: "
+                f"average {avg:,.0f}, lowest {low:,.0f}, highest {high:,.0f}."
+            )
+        return f"Here is the aggregated summary for {metric_name}{period}."
 
     # Analytics – raw time-series rows
     if source == "analytics":
